@@ -201,7 +201,7 @@ contract UniswapExchange {
       }
 
       token.issue(tokenSupply);
-      tokenPool = tokenSupply / TOKEN_SUPPLY_RATE;
+      tokenPool = token.totalSupply() / TOKEN_SUPPLY_RATE;
       invariant = ethPool.mul(tokenPool);
     }
   }
@@ -242,7 +242,7 @@ contract UniswapExchange {
         issuer.transfer(ethTotalDivested - ethDivested);
       }
 
-      uint256 tokenTotal = tokenSupply.sub(tokenSupply.div(TOKEN_SUPPLY_RATE));
+      uint256 tokenTotal = token.totalSupply().sub(token.totalSupply().div(TOKEN_SUPPLY_RATE));
       uint256 releasedToIssuer = tokenTotal.sub(tokenTotal.mul(totalShares).div(target));
       require(token.transfer(issuer, tokensDivested + releasedToIssuer));
     }

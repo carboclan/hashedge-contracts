@@ -1,3 +1,4 @@
+const HashRateOptionsToken = artifacts.require('./HashRateOptionsToken.sol');
 const HashedgeFactory = artifacts.require('./HashedgeFactory.sol');
 const UniswapExchange = artifacts.require('./UniswapExchange.sol');
 
@@ -24,6 +25,7 @@ contract('TestAll', async accounts => {
 
       assert.equal(1, await hashedgeFactory.getExchangeCount());
       const tokenAddr = await hashedgeFactory.tokenList(0);
+      const token = HashRateOptionsToken.at(tokenAddr);
       const xhgAddr = await hashedgeFactory.tokenToExchangeLookup(tokenAddr);
       const xhg = UniswapExchange.at(xhgAddr);
 
@@ -33,6 +35,10 @@ contract('TestAll', async accounts => {
       await xhg.investLiquidity({ from: accounts[2], value: web3.toWei(10, 'ether') });
       assert.equal(web3.toWei(9, 'ether'), await xhg.getShares(accounts[2]));
       assert.equal(true, await xhg.tradable());
+
+      await xhg.divestLiquidity(web3.toWei(1, 'ether'), 0, { from: accounts[1] });
+      assert.equal(0, await xhg.getShares(accounts[1]));
+      assert.equal(web3.toWei(10, 'ether'), await token.balanceOf(accounts[0]));
     });
   });
 });
