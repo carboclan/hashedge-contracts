@@ -214,21 +214,19 @@ contract UniswapExchange {
   external
   {
     require(_sharesBurned > 0);
-    uint256 ethPerShare = ethPool.div(totalShares);
-    uint256 ethTotalDivested = ethPerShare.mul(_sharesBurned);
-    uint256 profitPerShare = profitPool.div(totalShares);
-    uint256 profitDivested = profitPerShare.mul(_sharesBurned);
+    uint256 ethTotalDivested = ethPool.mul(_sharesBurned).div(totalShares);
+    uint256 profitDivested = profitPool.mul(_sharesBurned).div(totalShares);
 
     shares[msg.sender] = shares[msg.sender].sub(_sharesBurned);
-    totalShares = totalShares.sub(_sharesBurned);
-    uint256 ethDivested = _sharesBurned + profitDivested;
+    uint256 ethDivested = _sharesBurned.add(profitDivested);
     ethPool = ethPool.sub(ethTotalDivested);
     profitPool = profitPool.sub(profitDivested);
     msg.sender.transfer(ethDivested);
 
     if (tradable()) {
-      uint256 tokensPerShare = tokenPool.div(totalShares);
-      uint256 tokensDivested = tokensPerShare.mul(_sharesBurned);
+      uint256 tokensDivested = tokenPool.mul(_sharesBurned).div(totalShares);
+      totalShares = totalShares.sub(_sharesBurned);
+
       require(tokensDivested >= _minTokens);
       tokenPool = tokenPool.sub(tokensDivested);
       if (totalShares == 0) {
@@ -245,6 +243,8 @@ contract UniswapExchange {
       uint256 tokenTotal = token.totalSupply().sub(token.totalSupply().div(TOKEN_SUPPLY_RATE));
       uint256 releasedToIssuer = tokenTotal.sub(tokenTotal.mul(totalShares).div(target));
       require(token.transfer(issuer, tokensDivested + releasedToIssuer));
+    } else {
+      totalShares = totalShares.sub(_sharesBurned);
     }
   }
 

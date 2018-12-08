@@ -32,13 +32,42 @@ contract('TestAll', async accounts => {
       assert.equal(false, await xhg.tradable());
       await xhg.investLiquidity({ from: accounts[1], value: web3.toWei(1, 'ether') });
       assert.equal(web3.toWei(1, 'ether'), await xhg.getShares(accounts[1]));
-      await xhg.investLiquidity({ from: accounts[2], value: web3.toWei(10, 'ether') });
-      assert.equal(web3.toWei(9, 'ether'), await xhg.getShares(accounts[2]));
+      await xhg.investLiquidity({ from: accounts[2], value: web3.toWei(4, 'ether') });
+      assert.equal(web3.toWei(4, 'ether'), await xhg.getShares(accounts[2]));
+      assert.equal(false, await xhg.tradable());
+      await xhg.investLiquidity({ from: accounts[3], value: web3.toWei(6, 'ether') });
+      assert.equal(web3.toWei(5, 'ether'), await xhg.getShares(accounts[3]));
       assert.equal(true, await xhg.tradable());
 
+      console.log(
+        web3.fromWei(await web3.eth.getBalance(accounts[1])).toString(),
+        web3.fromWei(await xhg.profitPool()).toString()
+      );
       await xhg.divestLiquidity(web3.toWei(1, 'ether'), 0, { from: accounts[1] });
+      console.log(
+        web3.fromWei(await web3.eth.getBalance(accounts[1])).toString(),
+        web3.fromWei(await xhg.profitPool()).toString()
+      );
       assert.equal(0, await xhg.getShares(accounts[1]));
       assert.equal(web3.toWei(10, 'ether'), await token.balanceOf(accounts[0]));
+
+      await xhg.ethToTokenSwap(1, Date.now() / 1000 + 60, { value: web3.toWei(10, 'ether'), from: accounts[5] });
+      const balance = await token.balanceOf(accounts[5]);
+      console.log(web3.fromWei(balance).toString());
+      await token.approve(xhgAddr, balance, { from: accounts[5] });
+      await xhg.tokenToEthSwap(balance, 1, Date.now() / 1000 + 60, { from: accounts[5] });
+      assert.equal(0, await token.balanceOf(accounts[5]));
+      console.log(web3.fromWei(await web3.eth.getBalance(accounts[5])).toString());
+
+      console.log(
+        web3.fromWei(await web3.eth.getBalance(accounts[2])).toString(),
+        web3.fromWei(await xhg.profitPool()).toString()
+      );
+      await xhg.divestLiquidity(web3.toWei(1, 'ether'), 0, { from: accounts[2] });
+      console.log(
+        web3.fromWei(await web3.eth.getBalance(accounts[2])).toString(),
+        web3.fromWei(await xhg.profitPool()).toString()
+      );
     });
   });
 });
