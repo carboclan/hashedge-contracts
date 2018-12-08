@@ -2,8 +2,9 @@ pragma solidity ^0.4.24;
 
 import "zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol";
 import "zeppelin-solidity/contracts/token/ERC20/StandardBurnableToken.sol";
+import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
-contract HashRateOptionsToken is DetailedERC20, StandardBurnableToken {
+contract HashRateOptionsToken is Ownable, DetailedERC20, StandardBurnableToken {
   string public hashType;
   string public currencyType;
   string public hashRateUnit;
@@ -12,8 +13,14 @@ contract HashRateOptionsToken is DetailedERC20, StandardBurnableToken {
   uint256 public endTs;
   uint256 public strikePrice;
 
-  constructor(string _name, string _symbol, uint8 _decimals, uint256 _totalSupply) public DetailedERC20(_name, _symbol, _decimals) {
-    totalSupply_ = _totalSupply * 10 ** uint256(_decimals);
+  constructor(string _name, string _symbol, uint8 _decimals) public DetailedERC20(_name, _symbol, _decimals) {
+  }
+
+  function issue(uint256 _totalSupply) onlyOwner {
+    require(totalSupply_ == 0);
+
+    balances[owner] = _totalSupply;
+    totalSupply_ = _totalSupply * 10 ** uint256(decimals);
   }
 
   function setInfo(
