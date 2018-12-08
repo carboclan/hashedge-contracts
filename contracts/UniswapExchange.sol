@@ -33,9 +33,19 @@ contract UniswapExchange {
   HashRateOptionsToken token;
   FactoryInterface factory;
 
-  /// MODIFIERS
-  modifier exchangeInitialized() {
-    require(invariant > 0 && totalShares > 0);
+/// MODIFIERS
+//  modifier exchangeInitialized() {
+//    require(invariant > 0 && totalShares > 0);
+//    _;
+//  }
+
+  modifier whenTradable() {
+    token.totalSupply() > 0;
+    _;
+  }
+
+  modifier whenNotTradable() {
+    token.totalSupply() == 0;
     _;
   }
 
@@ -49,24 +59,28 @@ contract UniswapExchange {
     factory = FactoryInterface(factoryAddress);
   }
 
+  function tradable() public view returns(bool) {
+    return token.totalSupply() > 0;
+  }
+
   /// FALLBACK FUNCTION
   function() public payable {
     require(msg.value != 0);
     ethToToken(msg.sender, msg.sender, msg.value, 1);
   }
 
-  /// EXTERNAL FUNCTIONS
-  function initializeExchange(uint256 _tokenAmount) external payable {
-    require(invariant == 0 && totalShares == 0);
-    // Prevents share cost from being too high or too low - potentially needs work
-    require(msg.value >= 10000 && _tokenAmount >= 10000 && msg.value <= 5*10**18);
-    ethPool = msg.value;
-    tokenPool = _tokenAmount;
-    invariant = ethPool.mul(tokenPool);
-    shares[msg.sender] = 1000;
-    totalShares = 1000;
-    require(token.transferFrom(msg.sender, address(this), _tokenAmount));
-  }
+/// EXTERNAL FUNCTIONS
+//  function initializeExchange(uint256 _tokenAmount) external payable {
+//    require(invariant == 0 && totalShares == 0);
+//    // Prevents share cost from being too high or too low - potentially needs work
+//    require(msg.value >= 10000 && _tokenAmount >= 10000 && msg.value <= 5*10**18);
+//    ethPool = msg.value;
+//    tokenPool = _tokenAmount;
+//    invariant = ethPool.mul(tokenPool);
+//    shares[msg.sender] = 1000;
+//    totalShares = 1000;
+//    require(token.transferFrom(msg.sender, address(this), _tokenAmount));
+//  }
 
   // Buyer swaps ETH for Tokens
   function ethToTokenSwap(
@@ -170,7 +184,7 @@ contract UniswapExchange {
   )
   external
   payable
-  exchangeInitialized
+  whenNotTradable
   {
     require(msg.value > 0 && _minShares > 0);
     uint256 ethPerShare = ethPool.div(totalShares);
@@ -235,7 +249,7 @@ contract UniswapExchange {
     uint256 minTokensOut
   )
   internal
-  exchangeInitialized
+  whenTradable
   {
     uint256 fee = ethIn.div(FEE_RATE);
     uint256 newEthPool = ethPool.add(ethIn);
@@ -257,7 +271,7 @@ contract UniswapExchange {
     uint256 minEthOut
   )
   internal
-  exchangeInitialized
+  whenTradable
   {
     uint256 fee = tokensIn.div(FEE_RATE);
     uint256 newTokenPool = tokenPool.add(tokensIn);
@@ -281,7 +295,7 @@ contract UniswapExchange {
     uint256 minTokensOut
   )
   internal
-  exchangeInitialized
+  whenTradable
   {
     require(tokenPurchased != address(0) && tokenPurchased != address(this));
     address exchangeAddress = factory.tokenToExchangeLookup(tokenPurchased);
