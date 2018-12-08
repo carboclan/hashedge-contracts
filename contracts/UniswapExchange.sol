@@ -27,16 +27,17 @@ contract UniswapExchange {
   uint256 public tokenPool;
   uint256 public profitPool;
   uint256 public invariant;
-  uint256 public totalShares;
   address public tokenAddress;
-  address public factoryAddress;
-  mapping(address => uint256) shares;
+  uint256 public totalSupply;
+  mapping(address => uint256) public balanceOf;
+
+  address factoryAddress;
   HashRateOptionsToken token;
   FactoryInterface factory;
 
 /// MODIFIERS
 //  modifier exchangeInitialized() {
-//    require(invariant > 0 && totalShares > 0);
+//    require(invariant > 0 && totalSupply > 0);
 //    _;
 //  }
 
@@ -72,14 +73,14 @@ contract UniswapExchange {
 
 /// EXTERNAL FUNCTIONS
 //  function initializeExchange(uint256 _tokenAmount) external payable {
-//    require(invariant == 0 && totalShares == 0);
+//    require(invariant == 0 && totalSupply == 0);
 //    // Prevents share cost from being too high or too low - potentially needs work
 //    require(msg.value >= 10000 && _tokenAmount >= 10000 && msg.value <= 5*10**18);
 //    ethPool = msg.value;
 //    tokenPool = _tokenAmount;
 //    invariant = ethPool.mul(tokenPool);
 //    shares[msg.sender] = 1000;
-//    totalShares = 1000;
+//    totalSupply = 1000;
 //    require(token.transferFrom(msg.sender, address(this), _tokenAmount));
 //  }
 
@@ -187,15 +188,15 @@ contract UniswapExchange {
   {
     require(msg.value > 0);
     uint256 sharesPurchased = msg.value;
-    if (totalShares.add(sharesPurchased) > target) {
-      sharesPurchased = target.sub(totalShares);
+    if (totalSupply.add(sharesPurchased) > target) {
+      sharesPurchased = target.sub(totalSupply);
     }
 
-    shares[msg.sender] = shares[msg.sender].add(sharesPurchased);
-    totalShares = totalShares.add(sharesPurchased);
+    balanceOf[msg.sender] = balanceOf[msg.sender].add(sharesPurchased);
+    totalSupply = totalSupply.add(sharesPurchased);
     ethPool = ethPool.add(msg.value);
     emit Investment(msg.sender, sharesPurchased);
-    if (totalShares == target) {
+    if (totalSupply == target) {
       if (msg.value > sharesPurchased) {
         msg.sender.transfer(msg.value - sharesPurchased);
       }
@@ -214,22 +215,22 @@ contract UniswapExchange {
   external
   {
     require(_sharesBurned > 0);
-    uint256 ethTotalDivested = ethPool.mul(_sharesBurned).div(totalShares);
-    uint256 profitDivested = profitPool.mul(_sharesBurned).div(totalShares);
+    uint256 ethTotalDivested = ethPool.mul(_sharesBurned).div(totalSupply);
+    uint256 profitDivested = profitPool.mul(_sharesBurned).div(totalSupply);
 
-    shares[msg.sender] = shares[msg.sender].sub(_sharesBurned);
+    balanceOf[msg.sender] = balanceOf[msg.sender].sub(_sharesBurned);
     uint256 ethDivested = _sharesBurned.add(profitDivested);
     ethPool = ethPool.sub(ethTotalDivested);
     profitPool = profitPool.sub(profitDivested);
     msg.sender.transfer(ethDivested);
 
     if (tradable()) {
-      uint256 tokensDivested = tokenPool.mul(_sharesBurned).div(totalShares);
-      totalShares = totalShares.sub(_sharesBurned);
+      uint256 tokensDivested = tokenPool.mul(_sharesBurned).div(totalSupply);
+      totalSupply = totalSupply.sub(_sharesBurned);
 
       require(tokensDivested >= _minTokens);
       tokenPool = tokenPool.sub(tokensDivested);
-      if (totalShares == 0) {
+      if (totalSupply == 0) {
         invariant = 0;
       } else {
         invariant = ethPool.mul(tokenPool);
@@ -241,23 +242,23 @@ contract UniswapExchange {
       }
 
       uint256 tokenTotal = token.totalSupply().sub(token.totalSupply().div(TOKEN_SUPPLY_RATE));
-      uint256 releasedToIssuer = tokenTotal.sub(tokenTotal.mul(totalShares).div(target));
+      uint256 releasedToIssuer = tokenTotal.sub(tokenTotal.mul(totalSupply).div(target));
       require(token.transfer(issuer, tokensDivested + releasedToIssuer));
     } else {
-      totalShares = totalShares.sub(_sharesBurned);
+      totalSupply = totalSupply.sub(_sharesBurned);
     }
   }
 
-  // View share balance of an address
-  function getShares(
-    address _provider
-  )
-  external
-  view
-  returns(uint256 _shares)
-  {
-    return shares[_provider];
-  }
+//  // View share balance of an address
+//  function getShares(
+//    address _provider
+//  )
+//  external
+//  view
+//  returns(uint256 _shares)
+//  {
+//    return shares[_provider];
+//  }
 
   /// INTERNAL FUNCTIONS
   function ethToToken(
@@ -335,4 +336,56 @@ contract UniswapExchange {
     require(token.transferFrom(buyer, address(this), tokensIn));
     require(exchange.tokenToTokenIn.value(ethOut)(recipient, minTokensOut));
   }
+
+  // Implement ERC20.
+  event Transfer(address indexed from, address indexed to, uint256 value);
+  event Approval(address indexed owner, address indexed spender, uint256 value);
+  mapping (address => mapping (address => uint256)) internal allowed;
+
+  function transfer(address _to, uint256 _value) public returns (bool) {
+    require(_value <= balanceOf[msg.sender]);
+    require(_to != address(0));
+
+    balanceOf[msg.sender] = balanceOf[msg.sender].sub(_value);
+    balanceOf[_to] = balanceOf[_to].add(_value);
+    emit Transfer(msg.sender, _to, _value);
+    return true;
+  }
+
+  function transferFrom(
+    address _from,
+    address _to,
+    uint256 _value
+  )
+  public
+  returns (bool)
+  {
+    require(_value <= balanceOf[_from]);
+    require(_value <= allowed[_from][msg.sender]);
+    require(_to != address(0));
+
+    balanceOf[_from] = balanceOf[_from].sub(_value);
+    balanceOf[_to] = balanceOf[_to].add(_value);
+    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+    emit Transfer(_from, _to, _value);
+    return true;
+  }
+
+  function approve(address _spender, uint256 _value) public returns (bool) {
+    allowed[msg.sender][_spender] = _value;
+    emit Approval(msg.sender, _spender, _value);
+    return true;
+  }
+
+  function allowance(
+    address _owner,
+    address _spender
+  )
+  public
+  view
+  returns (uint256)
+  {
+    return allowed[_owner][_spender];
+  }
+
 }

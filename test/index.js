@@ -31,12 +31,12 @@ contract('TestAll', async accounts => {
 
       assert.equal(false, await xhg.tradable());
       await xhg.investLiquidity({ from: accounts[1], value: web3.toWei(1, 'ether') });
-      assert.equal(web3.toWei(1, 'ether'), await xhg.getShares(accounts[1]));
+      assert.equal(web3.toWei(1, 'ether'), await xhg.balanceOf(accounts[1]));
       await xhg.investLiquidity({ from: accounts[2], value: web3.toWei(4, 'ether') });
-      assert.equal(web3.toWei(4, 'ether'), await xhg.getShares(accounts[2]));
+      assert.equal(web3.toWei(4, 'ether'), await xhg.balanceOf(accounts[2]));
       assert.equal(false, await xhg.tradable());
       await xhg.investLiquidity({ from: accounts[3], value: web3.toWei(6, 'ether') });
-      assert.equal(web3.toWei(5, 'ether'), await xhg.getShares(accounts[3]));
+      assert.equal(web3.toWei(5, 'ether'), await xhg.balanceOf(accounts[3]));
       assert.equal(true, await xhg.tradable());
 
       console.log(
@@ -48,7 +48,7 @@ contract('TestAll', async accounts => {
         web3.fromWei(await web3.eth.getBalance(accounts[1])).toString(),
         web3.fromWei(await xhg.profitPool()).toString()
       );
-      assert.equal(0, await xhg.getShares(accounts[1]));
+      assert.equal(0, await xhg.balanceOf(accounts[1]));
       assert.equal(web3.toWei(10, 'ether'), await token.balanceOf(accounts[0]));
 
       await xhg.ethToTokenSwap(1, Date.now() / 1000 + 60, { value: web3.toWei(10, 'ether'), from: accounts[5] });
