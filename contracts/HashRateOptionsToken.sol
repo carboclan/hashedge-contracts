@@ -16,7 +16,7 @@ contract HashRateOptionsToken is Ownable, DetailedERC20, StandardBurnableToken {
   constructor(string _name, string _symbol, uint8 _decimals) public DetailedERC20(_name, _symbol, _decimals) {
   }
 
-  function issue(uint256 _totalSupply) onlyOwner {
+  function issue(uint256 _totalSupply) onlyOwner external {
     require(totalSupply_ == 0);
 
     balances[owner] = _totalSupply;
