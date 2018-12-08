@@ -15,9 +15,14 @@ contract UniswapExchange {
   event Divestment(address indexed liquidityProvider, uint256 indexed sharesBurned);
 
   /// CONSTANTS
-  uint256 public constant FEE_RATE = 500;        //fee = 1/feeRate = 0.2%
+  uint256 public constant TOKEN_SUPPLY_RATE = 10; // token in exchange = 1 / TOKEN_SUPPLY_RATE = 10%
+  uint256 public constant FEE_RATE = 500;         // fee = 1/feeRate = 0.2%
 
   /// STORAGE
+  address public issuer;
+  uint256 public target;
+  uint256 public tokenSupply;
+
   uint256 public ethPool;
   uint256 public tokenPool;
   uint256 public invariant;
@@ -34,9 +39,12 @@ contract UniswapExchange {
     _;
   }
 
-  constructor(address _tokenAddress) public {
+  constructor(address _tokenAddress, address _issuer, uint256 _target, uint256 _tokenSupply) public {
     tokenAddress = _tokenAddress;
+    issuer = _issuer;
     factoryAddress = msg.sender;
+    target = _target;
+    tokenSupply = _tokenSupply;
     token = HashRateOptionsToken(tokenAddress);
     factory = FactoryInterface(factoryAddress);
   }

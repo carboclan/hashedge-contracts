@@ -57,7 +57,7 @@ contract HashedgeFactory is FactoryInterface {
       _strikePrice
     );
 
-    UniswapExchange newExchange = new UniswapExchange(token, _target, _totalSupply);
+    UniswapExchange newExchange = new UniswapExchange(token, msg.sender, _target, _totalSupply);
     token.transferOwnership(newExchange);
     tokenList.push(token);
     symbolToToken[_symbol] = token;
