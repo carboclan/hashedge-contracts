@@ -1,0 +1,16 @@
+{
+  "name": "liquidao",
+  "version": "0.0.1",
+  "description": "",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "truffle test"
+  },
+  "author": "Tal",
+  "license": "MIT",
+  "dependencies": {
+    "zeppelin-solidity": "^1.12.0"
+  }
+}

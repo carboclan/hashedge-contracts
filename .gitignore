@@ -1,6 +1,12 @@
+# IDE
+.idea
+.vscode
+
 # Logs
 logs
 *.log
+build/contracts
+package-lock.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
