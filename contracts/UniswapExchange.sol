@@ -25,6 +25,7 @@ contract UniswapExchange {
 
   uint256 public ethPool;
   uint256 public tokenPool;
+  uint256 public profitPool;
   uint256 public invariant;
   uint256 public totalShares;
   address public tokenAddress;
@@ -179,55 +180,64 @@ contract UniswapExchange {
   }
 
   // Invest liquidity and receive market shares
-  function investLiquidity(
-    uint256 _minShares
-  )
+  function investLiquidity()
   external
   payable
   whenNotTradable
   {
-    require(msg.value > 0 && _minShares > 0);
-    uint256 ethPerShare = ethPool.div(totalShares);
-    require(msg.value >= ethPerShare);
-    uint256 sharesPurchased = msg.value.div(ethPerShare);
-    require(sharesPurchased >= _minShares);
-    uint256 tokensPerShare = tokenPool.div(totalShares);
-    uint256 tokensRequired = sharesPurchased.mul(tokensPerShare);
+    require(msg.value > 0);
+    uint256 sharesPurchased = msg.value;
     shares[msg.sender] = shares[msg.sender].add(sharesPurchased);
     totalShares = totalShares.add(sharesPurchased);
     ethPool = ethPool.add(msg.value);
-    tokenPool = tokenPool.add(tokensRequired);
-    invariant = ethPool.mul(tokenPool);
     emit Investment(msg.sender, sharesPurchased);
-    require(token.transferFrom(msg.sender, address(this), tokensRequired));
+    if (totalShares > target) {
+      token.issue(tokenSupply);
+      tokenPool = tokenSupply / TOKEN_SUPPLY_RATE;
+      invariant = ethPool.mul(tokenPool);
+    }
   }
 
   // Divest market shares and receive liquidity
   function divestLiquidity(
     uint256 _sharesBurned,
-    uint256 _minEth,
     uint256 _minTokens
   )
   external
   {
     require(_sharesBurned > 0);
-    shares[msg.sender] = shares[msg.sender].sub(_sharesBurned);
     uint256 ethPerShare = ethPool.div(totalShares);
-    uint256 tokensPerShare = tokenPool.div(totalShares);
-    uint256 ethDivested = ethPerShare.mul(_sharesBurned);
-    uint256 tokensDivested = tokensPerShare.mul(_sharesBurned);
-    require(ethDivested >= _minEth && tokensDivested >= _minTokens);
+    uint256 ethTotalDivested = ethPerShare.mul(_sharesBurned);
+    uint256 profitPerShare = profitPool.div(totalShares);
+    uint256 profitDivested = profitPerShare.mul(_sharesBurned);
+
+    shares[msg.sender] = shares[msg.sender].sub(_sharesBurned);
     totalShares = totalShares.sub(_sharesBurned);
-    ethPool = ethPool.sub(ethDivested);
-    tokenPool = tokenPool.sub(tokensDivested);
-    if (totalShares == 0) {
-      invariant = 0;
-    } else {
-      invariant = ethPool.mul(tokenPool);
-    }
-    emit Divestment(msg.sender, _sharesBurned);
-    require(token.transfer(msg.sender, tokensDivested));
+    uint256 ethDivested = _sharesBurned + profitDivested;
+    ethPool = ethPool.sub(ethTotalDivested);
+    profitPool = profitPool.sub(profitDivested);
     msg.sender.transfer(ethDivested);
+
+    if (tradable()) {
+      uint256 tokensPerShare = tokenPool.div(totalShares);
+      uint256 tokensDivested = tokensPerShare.mul(_sharesBurned);
+      require(tokensDivested >= _minTokens);
+      tokenPool = tokenPool.sub(tokensDivested);
+      if (totalShares == 0) {
+        invariant = 0;
+      } else {
+        invariant = ethPool.mul(tokenPool);
+      }
+      emit Divestment(msg.sender, _sharesBurned);
+
+      if (ethTotalDivested > ethDivested) {
+        issuer.transfer(ethTotalDivested - ethDivested);
+      }
+
+      uint256 tokenTotal = tokenSupply.sub(tokenSupply.div(TOKEN_SUPPLY_RATE));
+      uint256 releasedToIssuer = tokenTotal.sub(tokenTotal.mul(totalShares).div(target));
+      require(token.transfer(issuer, tokensDivested + releasedToIssuer));
+    }
   }
 
   // View share balance of an address
@@ -252,6 +262,7 @@ contract UniswapExchange {
   whenTradable
   {
     uint256 fee = ethIn.div(FEE_RATE);
+    profitPool = profitPool.add(fee);
     uint256 newEthPool = ethPool.add(ethIn);
     uint256 tempEthPool = newEthPool.sub(fee);
     uint256 newTokenPool = invariant.div(tempEthPool);
@@ -273,11 +284,12 @@ contract UniswapExchange {
   internal
   whenTradable
   {
-    uint256 fee = tokensIn.div(FEE_RATE);
     uint256 newTokenPool = tokenPool.add(tokensIn);
-    uint256 tempTokenPool = newTokenPool.sub(fee);
-    uint256 newEthPool = invariant.div(tempTokenPool);
-    uint256 ethOut = ethPool.sub(newEthPool);
+    uint256 newEthPool = invariant.div(newTokenPool);
+    uint256 tempEthOut = ethPool.sub(newEthPool);
+    uint256 fee = tempEthOut.div(FEE_RATE);
+    uint256 ethOut = tempEthOut.sub(fee);
+    profitPool = profitPool.add(fee);
     require(ethOut >= minEthOut && ethOut <= ethPool);
     tokenPool = newTokenPool;
     ethPool = newEthPool;
@@ -300,11 +312,12 @@ contract UniswapExchange {
     require(tokenPurchased != address(0) && tokenPurchased != address(this));
     address exchangeAddress = factory.tokenToExchangeLookup(tokenPurchased);
     require(exchangeAddress != address(0) && exchangeAddress != address(this));
-    uint256 fee = tokensIn.div(FEE_RATE);
     uint256 newTokenPool = tokenPool.add(tokensIn);
-    uint256 tempTokenPool = newTokenPool.sub(fee);
-    uint256 newEthPool = invariant.div(tempTokenPool);
-    uint256 ethOut = ethPool.sub(newEthPool);
+    uint256 newEthPool = invariant.div(newTokenPool);
+    uint256 tempEthOut = ethPool.sub(newEthPool);
+    uint256 fee = tempEthOut.div(FEE_RATE);
+    uint256 ethOut = tempEthOut.sub(fee);
+    profitPool = profitPool.add(fee);
     require(ethOut <= ethPool);
     UniswapExchange exchange = UniswapExchange(exchangeAddress);
     emit TokenToEthPurchase(buyer, tokensIn, ethOut);
