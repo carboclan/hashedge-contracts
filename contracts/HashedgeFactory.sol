@@ -26,7 +26,9 @@ contract HashedgeFactory is FactoryInterface {
     uint256 _target, string _name, string _symbol, uint8 _decimals, uint256 _totalSupply,
     string _hashType, string _currencyType, string _hashRateUnit, uint256 _tokenSize,
     uint256 _startTs, uint256 _endTs, uint256 _strikePrice
-  ) public returns (address exchange) {
+  )
+  public returns (address exchange)
+  {
     require(symbolToToken[_symbol] == address(0));
     require(_target > 0);
     require(bytes(_name).length > 0);
