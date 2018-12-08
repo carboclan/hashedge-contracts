@@ -187,11 +187,19 @@ contract UniswapExchange {
   {
     require(msg.value > 0);
     uint256 sharesPurchased = msg.value;
+    if (totalShares.add(sharesPurchased) > target) {
+      sharesPurchased = target.sub(totalShares);
+    }
+
     shares[msg.sender] = shares[msg.sender].add(sharesPurchased);
     totalShares = totalShares.add(sharesPurchased);
     ethPool = ethPool.add(msg.value);
     emit Investment(msg.sender, sharesPurchased);
-    if (totalShares > target) {
+    if (totalShares == target) {
+      if (msg.value > sharesPurchased) {
+        msg.sender.transfer(msg.value - sharesPurchased);
+      }
+
       token.issue(tokenSupply);
       tokenPool = tokenSupply / TOKEN_SUPPLY_RATE;
       invariant = ethPool.mul(tokenPool);
