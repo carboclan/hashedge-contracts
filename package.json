@@ -11,6 +11,7 @@
   "author": "Tal",
   "license": "MIT",
   "dependencies": {
+    "truffle-privatekey-provider": "^1.0.0",
     "zeppelin-solidity": "^1.12.0"
   }
 }
